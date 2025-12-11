@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://5fdr83es0fe6"
-path="res://.godot/imported/制作简笔画桌面宠物 (3).png-a62901930370e67cc17b52da1ed7f8b4.ctex"
+uid="uid://7032ooottfff"
+path="res://.godot/imported/制作简笔画桌面宠物 (1).png-f12dc8bc9b873653057ae45a867476bd.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://制作简笔画桌面宠物 (3).png"
-dest_files=["res://.godot/imported/制作简笔画桌面宠物 (3).png-a62901930370e67cc17b52da1ed7f8b4.ctex"]
+source_file="res://宠物资源/制作简笔画桌面宠物 (1).png"
+dest_files=["res://.godot/imported/制作简笔画桌面宠物 (1).png-f12dc8bc9b873653057ae45a867476bd.ctex"]
 
 [params]
 

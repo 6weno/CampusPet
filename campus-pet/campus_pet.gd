@@ -22,23 +22,11 @@ var walk_duration = 5.0
 func _ready():
 	# 初始化随机数种子
 	randomize()
-	
-	var screen_size = DisplayServer.screen_get_size()
-	var window_size = get_window().size
-	
-	# 计算窗口左上角坐标，使其出现在屏幕右下角（留一点边距）
-	var target_pos = Vector2(
-		screen_size.x - window_size.x - 20,  # 右侧边距 20px
-		screen_size.y - window_size.y - 60   # 底部边距 60px（避开任务栏）
-	)
-	# 设置窗口位置
-	get_window().position = target_pos
-	# 设置宠物初始位置为窗口中心（可选）
-	position = Vector2(window_size.x / 2, window_size.y * 0.8)
 	# 设置初始动画
 	update_animation()
 	# 随机设置初始方向
-	direction = [1, -1][randi() % 2]
+	var directions = [1, -1]
+	direction = directions[randi() % directions.size()]
 	# 随机设置初始状态和计时器
 	if randf() < 0.5:
 		current_state = "idle"
@@ -68,6 +56,7 @@ func _process(delta):
 	
 	# 每帧都更新动画（处理方向翻转）
 	update_animation()
+	update_window_position()
 
 func move_and_constrain(delta):
 	# 根据方向和速度计算移动量
@@ -100,29 +89,22 @@ func start_idle():
 
 # 可选：添加鼠标点击交互
 func _input(event):
-	if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
-		# 获取 AnimatedSprite2D 的全局包围盒
-		var rect = get_pet_global_rect()
-		if rect.has_point(event.position):
-			start_idle()
-			print("喵！别摸我！")
-
-# 新增函数：计算宠物的全局点击区域
-func get_pet_global_rect() -> Rect2:
-	var sprite = pet_sprite
-	if not sprite.texture:
-		return Rect2()
+	if event is InputEventMouseButton:
+		if event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
+			# 检查点击是否发生在猫精灵的范围内
+			if pet_sprite.get_global_rect().has_point(event.position):
+				# 点击后，立即进入待机状态（模拟被吓到）
+				start_idle()
+				# （可选）播放一个音效或短暂的“惊吓”动画
+				print("喵！别摸我！")
+				
+func update_window_position():
+	var win = get_window()
+	var pet_pos = global_position  # 宠物在屏幕上的绝对位置
 	
-	# 获取原始纹理大小
-	var tex_size = sprite.texture.get_size()
-	# 考虑缩放（注意：如果 flip_h 为 true，scale.x 可能是负数）
-	var abs_scale = Vector2(abs(sprite.scale.x), abs(sprite.scale.y))
-	var scaled_size = tex_size * abs_scale
+	# 计算窗口应放置的位置：让宠物在窗口中心
+	var window_offset = Vector2i(win.size) / 2
+	var new_window_pos = Vector2i(pet_pos - Vector2(window_offset))
 	
-	# 计算左上角（考虑锚点，默认中心）
-	var offset = -scaled_size / 2  # 因为 AnimatedSprite2D 默认以中心为原点
-	
-	# 全局位置 = 节点全局位置 + 偏移
-	var global_pos = sprite.global_position + offset
-	
-	return Rect2(global_pos, scaled_size)
+	# 设置窗口位置
+	win.position = new_window_pos
