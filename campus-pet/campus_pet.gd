@@ -1,6 +1,5 @@
-@tool # 允许在编辑器中预览随机行为
-extends Node2D
 
+extends Node2D
 # --- 变量声明 ---
 # 使用 @onready 确保在节点进入场景树后才获取引用
 @onready var pet_sprite = $PetSprite
@@ -9,7 +8,7 @@ extends Node2D
 # 桌宠的状态
 var current_state = "idle" 
 # 行走速度（像素/秒）
-var walk_speed = 80
+var walk_speed = 8
 # 移动方向：1 代表向右，-1 代表向左
 var direction = 1
 # 计时器，用于控制状态切换
@@ -18,10 +17,27 @@ var state_timer = 0.0
 var idle_duration = 3.0
 var walk_duration = 5.0
 
+const DEBUG_MODE = true
 # --- 函数 ---
 func _ready():
 	# 初始化随机数种子
 	randomize()
+	var win = get_window()
+	if DEBUG_MODE:
+		win.set_flag(Window.FLAG_BORDERLESS, false)   # 显示边框
+		win.set_flag(Window.FLAG_TRANSPARENT, false)  # 关闭透明
+
+	var screen = DisplayServer.screen_get_size()
+	
+	# 设置窗口大小（略大于宠物）
+	win.size = Vector2i(300, 300)
+	
+	# 设置窗口初始位置：放在屏幕左下区域
+	var win_x = win.size.x
+	var win_y = screen.y  # 距离底部 50px
+	win.position=Vector2i(win_x,win_y)-win.size
+	# ===== 宠物在窗口内的初始位置：底部居中 =====
+	self.position = Vector2i(win.size/2)  # 窗口内坐标
 	# 设置初始动画
 	update_animation()
 	# 随机设置初始方向
@@ -56,22 +72,44 @@ func _process(delta):
 	
 	# 每帧都更新动画（处理方向翻转）
 	update_animation()
-	update_window_position()
+	#update_window_position()
 
 func move_and_constrain(delta):
-	# 根据方向和速度计算移动量
-	var move_x = walk_speed * delta * direction
-	position.x += move_x
+	var win = get_window()
 	
-	# 获取当前窗口的大小
-	var window_size = get_viewport_rect().size
-	# 边界检测：如果超出左右边界，则转向
-	if position.x < 0:
-		position.x = 0
+	# 1. 计算宠物在窗口内的新位置（假设窗口不动）
+	var new_pet_x = position.x + walk_speed * delta * direction
+	
+	# 2. 预测：如果宠物移到 new_pet_x，窗口会放在哪里？
+	#    （假设窗口始终以宠物为中心）
+	var window_offset = win.size.x / 2.0
+	var predicted_window_x = (win.position.x + new_pet_x) - window_offset  # 推导见下方说明
+	
+	# 3. 获取主屏幕的工作区（排除任务栏等）
+	var screen_rect = DisplayServer.get_display_safe_area()
+	
+	# 4. 检查预测的窗口是否超出屏幕左右边界
+	var min_window_x = screen_rect.position.x                    # 屏幕最左
+	var max_window_x = screen_rect.position.x + screen_rect.size.x - win.size.x  # 屏幕最右（窗口右边缘不能超）
+	
+	if predicted_window_x < min_window_x:
+		# 窗口会从左边出去 → 强制窗口贴左，宠物转向右
+		predicted_window_x = min_window_x
 		direction = 1
-	elif position.x > window_size.x:
-		position.x = window_size.x
+		new_pet_x = window_offset  # 宠物在窗口中心（x = win.size/2）
+		
+	elif predicted_window_x > max_window_x:
+		# 窗口会从右边出去 → 强制窗口贴右，宠物转向左
+		predicted_window_x = max_window_x
 		direction = -1
+		new_pet_x = window_offset
+	
+	# 5. 应用宠物新位置
+	position.x = new_pet_x
+	
+	# 6. 更新窗口位置（让宠物保持在窗口中心）
+	win.position.x = predicted_window_x
+	win.position.y = win.position.y  # Y 不变（或按需处理）
 
 func update_animation():
 	# 根据方向翻转精灵图像
@@ -100,11 +138,15 @@ func _input(event):
 				
 func update_window_position():
 	var win = get_window()
-	var pet_pos = global_position  # 宠物在屏幕上的绝对位置
+	var win_pos=win.position
+	var new_window_pos = Vector2i(global_position.x+win_pos.x,win_pos.y)  # 宠物在屏幕上的绝对位置
 	
 	# 计算窗口应放置的位置：让宠物在窗口中心
-	var window_offset = Vector2i(win.size) / 2
-	var new_window_pos = Vector2i(pet_pos - Vector2(window_offset))
 	
 	# 设置窗口位置
 	win.position = new_window_pos
+	if Engine.get_frames_drawn() % 600 == 0:  # 每秒一次（60fps）
+		print("📍 宠物位置:", global_position)
+		print("🖥️ 窗口位置:", win.position)
+		print("📏 窗口尺寸:", win.size)
+		print("---")
